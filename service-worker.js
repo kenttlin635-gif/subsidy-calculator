@@ -1,4 +1,4 @@
-const CACHE_NAME = 'subsidy-calculator-v32'; // 改為 v32
+const CACHE_NAME = 'subsidy-calculator-v33'; // 改為 v33
 const urlsToCache = [
   './',
   './index.html',
