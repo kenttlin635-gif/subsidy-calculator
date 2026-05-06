@@ -1,5 +1,5 @@
 // 1. 更新版本號，確保瀏覽器識別為新版本
-const CACHE_NAME = 'subsidy-calculator-v37';
+const CACHE_NAME = 'subsidy-calculator-v39';
 
 // 2. 需要快取的靜態檔案
 const urlsToCache = [
@@ -14,7 +14,7 @@ self.addEventListener('install', function(event) {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(function(cache) {
-        console.log('V37 快取已成功建立');
+        console.log('V39 快取已成功建立');
         return cache.addAll(urlsToCache);
       })
   );
