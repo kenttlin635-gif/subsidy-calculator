@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>身障/長照 補助計算機 V35</title>
+  <title>身障/長照 補助計算機 V36</title>
   <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#4A90E2">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -37,13 +37,12 @@
       LTC_CONST: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSc52n0bHfF-AtmLmVLrTkhTjNTPT383WW_x1Mb53OAxPLdaeeDtrRHidAj-rQvDX2XRzxkEo2vDETV/pub?gid=1335611083&single=true&output=csv"
     };
 
-    // 圖示
     const IconBase = ({ children, size = 18, className = "" }) => (
       <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>
     );
     const Trash2 = (p) => <IconBase {...p}><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6" /></IconBase>;
     const Plus = (p) => <IconBase {...p}><path d="M12 5v14M5 12h14" /></IconBase>;
-    const RefreshCw = (p) => <IconBase {...p}><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></IconBase>;
+    const RefreshCw = (p) => <IconBase {...p} className="loading-spin"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></IconBase>;
     const CheckSquare = (p) => <IconBase {...p}><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></IconBase>;
     const Square = (p) => <IconBase {...p}><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /></IconBase>;
     const CheckCircle = (p) => <IconBase {...p}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></IconBase>;
@@ -55,7 +54,6 @@
 
     const ECON_STATUS = ['一般戶', '中低收', '低收入戶'];
 
-    // 儀表板方塊
     const Card = ({ title, value, colorClass = "", isWarning = false }) => (
       <div className={`flex flex-col items-center p-1 border border-blue-800 rounded shadow-sm w-full transition-colors ${isWarning ? 'bg-yellow-300' : 'bg-white'}`}>
         <div className="text-[10px] font-bold text-black whitespace-nowrap mb-1">{title}</div>
@@ -76,11 +74,9 @@
       const [isInitialLoading, setIsInitialLoading] = useState(true);
       const [isSyncing, setIsSyncing] = useState(false);
       const [db, setDb] = useState({ equip: [], disConst: [], ltcConst: [], lastUpdate: '' });
-      
       const [disabilityStatus, setDisabilityStatus] = useState('');
       const [ltcStatus, setLtcStatus] = useState('');
       
-      // 預設各區 3 條
       const createDefaultEquip = () => [
         { id: Date.now(), productId: '', ltcChecked: false, disChecked: false },
         { id: Date.now()+1, productId: '', ltcChecked: false, disChecked: false },
@@ -101,13 +97,11 @@
       const [isDisConstOpen, setIsDisConstOpen] = useState(true);
       const [constApplyMode, setConstApplyMode] = useState('LTC');
 
-      // --- 核心同步函數 ---
       const syncDataFromCloud = useCallback(async (isManual = false) => {
         setIsSyncing(true);
         try {
           const fetchCsv = async (url) => {
             const res = await fetch(url);
-            if (!res.ok) throw new Error("Fetch failed");
             const text = await res.text();
             return text.split(/\r?\n/).map(line => line.split(','));
           };
@@ -127,30 +121,23 @@
           }));
           const dateStr = new Date().toLocaleDateString('zh-TW', {month:'2-digit', day:'2-digit'});
           const finalDb = { equip, disConst: parseC(rawDis), ltcConst: parseC(rawLtc), lastUpdate: dateStr };
-          
           localStorage.setItem('subsidy_db_v35', JSON.stringify(finalDb));
           setDb(finalDb);
-          if(isManual) alert("基準表已同步至最新版本！");
+          if(isManual) alert("基準表已更新！");
         } catch (e) {
-          if(isManual) alert("同步失敗，請檢查網路連線。");
+          if(isManual) alert("同步失敗，請檢查網路。");
         } finally {
           setIsSyncing(false);
           setIsInitialLoading(false);
         }
       }, []);
 
-      // 啟動邏輯：優先讀取手機
       useEffect(() => {
         const backup = localStorage.getItem('subsidy_db_v35');
-        if (backup) {
-          setDb(JSON.parse(backup));
-          setIsInitialLoading(false);
-        } else {
-          syncDataFromCloud(); // 首次強迫同步
-        }
+        if (backup) { setDb(JSON.parse(backup)); setIsInitialLoading(false); }
+        else { syncDataFromCloud(); }
       }, [syncDataFromCloud]);
 
-      // 計算邏輯
       const calculatedEquipRows = useMemo(() => {
         return equipRows.map(row => {
           const p = db.equip.find(x => x.id === row.productId);
@@ -183,10 +170,9 @@
 
       const constDiff = totals.lSub - totals.dSub;
       let diffText = "金額相同", diffColorClass = "text-gray-500";
-      if (constDiff > 0) { diffText = `長照較優 (+${constDiff})`; diffColorClass = "text-blue-700 font-bold"; }
-      else if (constDiff < 0) { diffText = `身障較優 (${constDiff})`; diffColorClass = "text-green-700 font-bold"; }
+      if (constDiff > 0) { diffText = `長照優 (+${constDiff})`; diffColorClass = "text-blue-700 font-bold"; }
+      else if (constDiff < 0) { diffText = `身障優 (${constDiff})`; diffColorClass = "text-green-700 font-bold"; }
 
-      // 操作
       const handleEquipCheck = (id, field) => {
         setEquipRows(equipRows.map(r => r.id === id ? { ...r, [field]: !r[field], ...(!r[field] && field === 'ltcChecked' ? { disChecked: false } : {}), ...(!r[field] && field === 'disChecked' ? { ltcChecked: false } : {}) } : r));
       };
@@ -197,224 +183,75 @@
         else if (type === 'CONST') { setLtcConstRows(createDefaultConst(50)); setDisConstRows(createDefaultConst(60)); }
         else if (type === 'LTC_CH') setEquipRows(equipRows.map(r=>({...r, ltcChecked:false})));
         else if (type === 'DIS_CH') setEquipRows(equipRows.map(r=>({...r, disChecked:false})));
-        else { // 總清除：純狀態重置
-            setDisabilityStatus(''); setLtcStatus('');
-            setEquipRows(createDefaultEquip());
-            setLtcConstRows(createDefaultConst(70));
-            setDisConstRows(createDefaultConst(80));
-        }
+        else { setDisabilityStatus(''); setLtcStatus(''); setEquipRows(createDefaultEquip()); setLtcConstRows(createDefaultConst(70)); setDisConstRows(createDefaultConst(80)); }
       };
 
-      const handleScreenshot = () => {
-        window.scrollTo(0, 0);
-        htmlToImage.toPng(document.getElementById('main-content'), { quality: 1, backgroundColor: '#f3f4f6' })
-          .then(url => { const l = document.createElement('a'); l.download = `試算_${new Date().toLocaleDateString()}.png`; l.href = url; l.click(); });
-      };
-
-      if (isInitialLoading) return (
-        <div className="h-screen flex flex-col items-center justify-center bg-gray-900 text-white">
-          <RefreshCw size={48} className="mb-4 text-blue-400 loading-spin" />
-          <p className="text-lg font-bold">初始化資料庫中...</p>
-        </div>
-      );
+      if (isInitialLoading) return <div className="h-screen flex flex-col items-center justify-center bg-gray-900 text-white"><RefreshCw size={48} className="mb-4 text-blue-400 loading-spin" /><p>初始化...</p></div>;
 
       return (
         <div className="bg-gray-100 font-sans min-h-screen">
-          <div className="portrait:flex landscape:hidden fixed inset-0 z-[9999] bg-gray-900 text-white flex flex-col items-center justify-center p-8 text-center">
-             <RefreshCw className="mb-6 text-yellow-400 animate-pulse" />
-             <h2 className="text-xl font-bold mb-4">請旋轉裝置</h2>
-             <Smartphone className="mt-8 text-gray-700 rotate-90" />
-          </div>
-
+          <div className="portrait:flex landscape:hidden fixed inset-0 z-[9999] bg-gray-900 text-white flex flex-col items-center justify-center p-8 text-center"><RefreshCw className="mb-6 text-yellow-400 animate-pulse" /><h2>請旋轉裝置</h2><Smartphone className="mt-8 text-gray-700 rotate-90" /></div>
           <div className="portrait:hidden landscape:block w-full px-2 pb-10" id="main-content">
-            
-            {/* Header + 手動同步按鈕 */}
             <div className="sticky top-0 z-50 bg-white rounded-lg shadow-md mb-3 border border-gray-200 mt-2 overflow-hidden">
-              <div className="bg-blue-600 text-white p-1.5 text-center font-bold text-sm relative">
-                身障/長照 補助計算機 V35
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                    <span className="text-[9px] font-normal opacity-80 whitespace-nowrap">基準表: {db.lastUpdate || '未同步'}</span>
-                    <button onClick={() => syncDataFromCloud(true)} className="bg-white/20 hover:bg-white/40 p-1.5 rounded transition-colors" title="手動同步雲端資料">
-                        <RefreshCw size={14} className={isSyncing ? "loading-spin" : ""} />
-                    </button>
-                </div>
-              </div>
-              
+              <div className="bg-blue-600 text-white p-1.5 text-center font-bold text-sm relative">身障/長照 補助計算機 V36<div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2"><span className="text-[9px] font-normal opacity-80">基準表: {db.lastUpdate}</span><button onClick={() => syncDataFromCloud(true)} className="bg-white/20 p-1.5 rounded"><RefreshCw size={14} className={isSyncing ? "loading-spin" : ""} /></button></div></div>
               <div className="p-2">
                 <div className="flex items-end gap-2 mb-2">
-                  <div className="w-32"><label className="font-bold text-xs block text-gray-700">身障經濟別</label>
-                    <select className="w-full border border-gray-300 rounded p-1 text-sm bg-gray-50 h-8" value={disabilityStatus} onChange={e => setDisabilityStatus(e.target.value)}><option value="">請選擇...</option>{ECON_STATUS.map(s => <option key={s} value={s}>{s}</option>)}</select>
-                  </div>
-                  <div className="w-32"><label className="font-bold text-xs block text-gray-700">長照經濟別</label>
-                    <select className="w-full border border-gray-300 rounded p-1 text-sm bg-gray-50 h-8" value={ltcStatus} onChange={e => setLtcStatus(e.target.value)}><option value="">請選擇...</option>{ECON_STATUS.map(s => <option key={s} value={s}>{s}</option>)}</select>
-                  </div>
-                  <div className="flex gap-1 flex-1">
-                    <Card title="身障總金額" value={totals.disTotal} />
-                    <Card title="長照總金額" value={totals.ltcTotal} />
-                    <Card title="總補助" value={totals.disTotal + totals.ltcTotal} />
-                    <Card title="長照占用總額度" value={totals.quotaTotal} isWarning={totals.quotaTotal > 40000} />
-                  </div>
+                  <div className="w-32"><label className="font-bold text-xs block text-gray-700">身障經濟別</label><select className="w-full border rounded p-1 text-sm h-8" value={disabilityStatus} onChange={e => setDisabilityStatus(e.target.value)}><option value="">請選擇...</option>{ECON_STATUS.map(s => <option key={s}>{s}</option>)}</select></div>
+                  <div className="w-32"><label className="font-bold text-xs block text-gray-700">長照經濟別</label><select className="w-full border rounded p-1 text-sm h-8" value={ltcStatus} onChange={e => setLtcStatus(e.target.value)}><option value="">請選擇...</option>{ECON_STATUS.map(s => <option key={s}>{s}</option>)}</select></div>
+                  <div className="flex gap-1 flex-1"><Card title="身障總金額" value={totals.disTotal} /><Card title="長照總金額" value={totals.ltcTotal} /><Card title="總補助" value={totals.disTotal + totals.ltcTotal} /><Card title="長照占用總額度" value={totals.quotaTotal} isWarning={totals.quotaTotal > 40000} /></div>
                 </div>
-
-                {/* 4萬警告警語 */}
-                {totals.quotaTotal > 40000 && (
-                  <div className="text-red-600 font-bold text-xs mb-2 text-center bg-yellow-100 p-1 rounded border border-red-300 animate-pulse">
-                    ⚠️ 長照額度超額，實際總補助金額可能不準確
-                  </div>
-                )}
-
-                <div className="flex flex-wrap gap-1 items-center">
-                  <button onClick={()=>clearAction('ECON')} className="px-2 py-1.5 rounded text-white font-bold text-xs bg-gray-600 shadow">經濟別清除</button>
-                  <button onClick={()=>clearAction('EQUIP')} className="px-2 py-1.5 rounded text-white font-bold text-xs bg-sky-600 shadow">輔具區清除</button>
-                  <button onClick={()=>clearAction('CONST')} className="px-2 py-1.5 rounded text-white font-bold text-xs bg-orange-600 shadow">無障礙區清除</button>
-                  <button onClick={()=>clearAction('LTC_CH')} className="px-2 py-1.5 rounded text-white font-bold text-xs bg-blue-400 shadow">長照勾勾清除</button>
-                  <button onClick={()=>clearAction('DIS_CH')} className="px-2 py-1.5 rounded text-white font-bold text-xs bg-emerald-600 shadow">身障勾勾清除</button>
-                  <button onClick={()=>clearAction('ALL')} className="px-2 py-1.5 rounded text-white font-bold text-xs bg-red-600 shadow">總清除</button>
-                  <button onClick={handleScreenshot} className="px-2 py-1.5 rounded text-white font-bold text-xs bg-purple-600 shadow ml-auto">一鍵截圖</button>
-                </div>
+                {totals.quotaTotal > 40000 && <div className="text-red-600 font-bold text-xs mb-2 text-center bg-yellow-100 p-1 rounded border border-red-300">⚠️ 長照額度超額，實際總補助金額可能不準確</div>}
+                <div className="flex flex-wrap gap-1 items-center"><button onClick={()=>clearAction('ECON')} className="px-2 py-1.5 rounded text-white font-bold text-xs bg-gray-600 shadow">經濟別清除</button><button onClick={()=>clearAction('EQUIP')} className="px-2 py-1.5 rounded text-white font-bold text-xs bg-sky-600 shadow">輔具區清除</button><button onClick={()=>clearAction('CONST')} className="px-2 py-1.5 rounded text-white font-bold text-xs bg-orange-600 shadow">無障礙區清除</button><button onClick={()=>clearAction('LTC_CH')} className="px-2 py-1.5 rounded text-white font-bold text-xs bg-blue-400 shadow">長照勾勾清除</button><button onClick={()=>clearAction('DIS_CH')} className="px-2 py-1.5 rounded text-white font-bold text-xs bg-emerald-600 shadow">身障勾勾清除</button><button onClick={()=>clearAction('ALL')} className="px-2 py-1.5 rounded text-white font-bold text-xs bg-red-600 shadow">總清除</button><button onClick={handleScreenshot} className="px-2 py-1.5 rounded text-white font-bold text-xs bg-purple-600 shadow ml-auto">一鍵截圖</button></div>
               </div>
             </div>
 
-            {/* 1. 輔具清單 (預設3條，無時間顯示) */}
+            {/* 輔具清單 (欄位比例優化：項目名稱恢復 28%) */}
             <div className="mb-3 bg-white rounded-lg shadow-sm border border-blue-200 overflow-hidden">
                <div className="bg-blue-100 p-2 flex justify-between items-center cursor-pointer select-none" onClick={() => setIsEquipOpen(!isEquipOpen)}>
                   <div className="flex items-center gap-1 text-base font-bold text-blue-900">輔具清單</div>
-                  <div className="flex items-center gap-2">
-                    <button onClick={(e) => { e.stopPropagation(); setEquipRows([...equipRows, {id: Date.now(), productId: '', ltcChecked: false, disChecked: false}]); }} className="bg-green-600 text-white hover:bg-green-500 rounded px-2 py-0.5 flex items-center gap-1 shadow text-xs"><Plus size={14}/>新增</button>
-                    {isEquipOpen ? <ChevronUp size={18} className="text-blue-700"/> : <ChevronDown size={18} className="text-blue-700"/>}
-                  </div>
+                  <div className="flex items-center gap-2"><button onClick={(e) => { e.stopPropagation(); setEquipRows([...equipRows, {id: Date.now(), productId: '', ltcChecked: false, disChecked: false}]); }} className="bg-green-600 text-white rounded px-2 py-0.5 text-xs">+ 新增</button>{isEquipOpen ? <ChevronUp size={18} className="text-blue-700"/> : <ChevronDown size={18} className="text-blue-700"/>}</div>
                </div>
                {isEquipOpen && (
                  <div>
                    <div className="flex bg-blue-50 border-b border-gray-200 p-1 font-bold text-[10px] text-blue-900 items-center text-center gap-0.5">
-                      <div className="w-[22%] text-left pl-1">項目名稱</div>
-                      <div className="w-[6%]">長照</div><div className="w-[11%]">長照金額</div>
-                      <div className="w-[6%]">身障</div><div className="w-[11%]">身障金額</div>
-                      <div className="w-[8%] text-blue-600">年限</div>
-                      <div className="w-[12%]">差額</div><div className="w-[12%]">長照占用額度</div><div className="w-[12%]">操作</div>
+                      <div className="w-[28%] text-left pl-1">項目名稱</div>
+                      <div className="w-[5%]">長照</div><div className="w-[10%]">長照金額</div>
+                      <div className="w-[5%]">身障</div><div className="w-[10%]">身障金額</div>
+                      <div className="w-[7%] text-blue-600">年限</div>
+                      <div className="w-[11%]">差額</div><div className="w-[12%]">長照占用額度</div><div className="w-[12%]">操作</div>
                    </div>
                    {calculatedEquipRows.map(row => (
                       <div key={row.id} className="flex items-center text-xs p-1 border-b border-gray-200 hover:bg-blue-50/50 gap-0.5">
-                        <div className="w-[22%] p-0.5"><select className="w-full border border-blue-800 rounded p-0.5 font-bold bg-white text-xs h-8" value={row.productId} onChange={e => setEquipRows(equipRows.map(r => r.id === row.id ? {...r, productId: e.target.value} : r))}><option value="">請選擇...</option>{db.equip.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
-                        <div className="w-[6%] flex justify-center"><button onClick={() => handleEquipCheck(row.id, 'ltcChecked')}>{row.ltcChecked ? <CheckSquare className="text-blue-600"/> : <Square className="text-gray-300"/>}</button></div>
-                        <div className="w-[11%] px-0.5 text-center font-medium border bg-white py-1 rounded">{row.ltcP}</div>
-                        <div className="w-[6%] flex justify-center"><button onClick={() => handleEquipCheck(row.id, 'disChecked')}>{row.disChecked ? <CheckSquare className="text-green-600"/> : <Square className="text-gray-300"/>}</button></div>
-                        <div className="w-[11%] px-0.5 text-center font-medium border bg-white py-1 rounded">{row.disP}</div>
-                        <div className="w-[8%] text-center font-bold text-blue-600">{row.years}</div>
-                        <div className="w-[12%] px-0.5 text-center font-medium border bg-white py-1 rounded">{row.diff}</div>
-                        <div className="w-[12%] px-0.5 text-center font-medium border bg-white py-1 rounded">{row.q}</div>
-                        <div className="w-[12%] flex justify-center"><button onClick={() => setEquipRows(equipRows.filter(r => r.id !== row.id))} className="text-red-500 p-1"><Trash2 size={16} /></button></div>
+                        <div className="w-[28%] p-0.5"><select className="w-full border border-blue-800 rounded p-0.5 font-bold bg-white text-[11px] h-8" value={row.productId} onChange={e => setEquipRows(equipRows.map(r => r.id === row.id ? {...r, productId: e.target.value} : r))}><option value="">請選擇...</option>{db.equip.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
+                        <div className="w-[5%] flex justify-center"><button onClick={() => handleEquipCheck(row.id, 'ltcChecked')}>{row.ltcChecked ? <CheckSquare className="text-blue-600"/> : <Square className="text-gray-300"/>}</button></div>
+                        <div className="w-[10%] px-0.5 text-center font-medium border bg-white py-1 rounded truncate text-[10px]">{row.ltcP}</div>
+                        <div className="w-[5%] flex justify-center"><button onClick={() => handleEquipCheck(row.id, 'disChecked')}>{row.disChecked ? <CheckSquare className="text-green-600"/> : <Square className="text-gray-300"/>}</button></div>
+                        <div className="w-[10%] px-0.5 text-center font-medium border bg-white py-1 rounded truncate text-[10px]">{row.disP}</div>
+                        <div className="w-[7%] text-center font-bold text-blue-600 text-[10px]">{row.years}</div>
+                        <div className="w-[11%] px-0.5 text-center font-medium border bg-white py-1 rounded truncate text-[10px]">{row.diff}</div>
+                        <div className="w-[12%] px-0.5 text-center font-medium border bg-white py-1 rounded truncate text-[10px]">{row.q}</div>
+                        <div className="w-[12%] flex justify-center"><button onClick={() => setEquipRows(equipRows.filter(r => r.id !== row.id))} className="text-red-500"><Trash2 size={16} /></button></div>
                       </div>
                    ))}
                  </div>
                )}
             </div>
 
-            {/* 無障礙申請管道 */}
+            {/* 無障礙區 (維持 800px min-width 確保不換行) */}
             <div className="mb-3 bg-white rounded-lg shadow-sm border border-gray-200 p-2 flex flex-wrap items-center gap-2">
-               <div className="flex items-center gap-2 mr-auto">
-                   <span className="text-sm font-bold text-gray-700 whitespace-nowrap">無障礙申請管道：</span>
-                   <div className="flex items-center gap-2 border border-gray-300 px-2 py-1 rounded bg-gray-50 whitespace-nowrap">
-                      <Info size={14} className="text-gray-500" />
-                      <span className={`text-xs ${diffColorClass}`}>{diffText}</span>
-                   </div>
-               </div>
-               <div className="flex items-center gap-4 flex-wrap">
-                  <div className="flex gap-4">
-                      <label className="flex items-center gap-1 cursor-pointer" onClick={() => setConstApplyMode('LTC')}>
-                        {constApplyMode === 'LTC' ? <CheckCircle className="text-blue-600" /> : <Circle className="text-gray-300" />}
-                        <span className={`text-sm font-bold ${constApplyMode === 'LTC' ? 'text-blue-700' : 'text-gray-500'}`}>從長照申請</span>
-                      </label>
-                      <label className="flex items-center gap-1 cursor-pointer" onClick={() => setConstApplyMode('DISABILITY')}>
-                        {constApplyMode === 'DISABILITY' ? <CheckCircle className="text-green-600" /> : <Circle className="text-gray-300" />}
-                        <span className={`text-sm font-bold ${constApplyMode === 'DISABILITY' ? 'text-green-700' : 'text-gray-500'}`}>從身障申請</span>
-                      </label>
-                  </div>
-               </div>
+               <div className="flex items-center gap-2 mr-auto"><span className="text-sm font-bold text-gray-700">管道：</span><div className="flex items-center gap-2 border px-2 py-1 rounded bg-gray-50"><Info size={14} className="text-gray-500" /><span className={`text-xs ${diffColorClass}`}>{diffText}</span></div></div>
+               <div className="flex gap-4"><label className="flex items-center gap-1 cursor-pointer" onClick={() => setConstApplyMode('LTC')}>{constApplyMode === 'LTC' ? <CheckCircle className="text-blue-600" /> : <Circle className="text-gray-300" />}<span className={`text-sm font-bold ${constApplyMode === 'LTC' ? 'text-blue-700' : 'text-gray-500'}`}>從長照申請</span></label><label className="flex items-center gap-1 cursor-pointer" onClick={() => setConstApplyMode('DISABILITY')}>{constApplyMode === 'DISABILITY' ? <CheckCircle className="text-green-600" /> : <Circle className="text-gray-300" />}<span className={`text-sm font-bold ${constApplyMode === 'DISABILITY' ? 'text-green-700' : 'text-gray-500'}`}>從身障申請</span></label></div>
             </div>
 
-            {/* 2. 長照無障礙區 (預設3條) */}
-            <div className="mb-3 bg-white rounded-lg shadow-sm border border-blue-300 overflow-hidden">
-              <div className="bg-blue-50 p-2 flex justify-between items-center cursor-pointer select-none" onClick={() => setIsLtcConstOpen(!isLtcConstOpen)}>
-                  <div className="text-base font-bold text-blue-800">長照無障礙項目</div>
-                  <div className="flex items-center gap-2">
-                    <SmallStatCard title="無障礙長照總額" value={totals.lSub} colorClass="text-blue-700"/>
-                    <SmallStatCard title="無障礙長照額度" value={totals.lQSub} colorClass="text-gray-700"/>
-                    <button onClick={(e) => { e.stopPropagation(); setLtcConstRows([...ltcConstRows, {id: Date.now(), productId: '', quantity: 1}]); }} className="bg-blue-600 text-white hover:bg-blue-500 rounded px-2 py-0.5 flex items-center gap-1 shadow text-xs"><Plus size={14}/>新增</button>
-                    {isLtcConstOpen ? <ChevronUp size={18} className="text-blue-700"/> : <ChevronDown size={18} className="text-blue-700"/>}
-                  </div>
-              </div>
-              {isLtcConstOpen && (
-                <div className="overflow-x-auto no-scrollbar">
-                  <div className="min-w-[800px]">
-                    <div className="flex bg-gray-50 border-b border-gray-200 p-1 font-bold text-[10px] text-gray-700 items-center text-center gap-0.5">
-                        <div className="w-[30%] text-left pl-1">長照項目</div>
-                        <div className="w-[15%]">長照單組金額</div>
-                        <div className="w-[10%]">組數</div>
-                        <div className="w-[15%]">長照單項金額</div>
-                        <div className="w-[15%]">單項額度</div>
-                        <div className="w-[15%]">操作</div>
-                    </div>
-                    {ltcConstCalc.map(row => (
-                      <div key={row.id} className="flex items-center text-xs p-1 border-b border-gray-100 hover:bg-blue-50 gap-0.5">
-                          <div className="w-[30%] p-0.5"><select className="w-full border border-blue-300 rounded p-0.5 font-bold bg-white text-xs h-8" value={row.productId} onChange={e => setLtcConstRows(ltcConstRows.map(x=>x.id===row.id?{...x, productId:e.target.value}:x))}><option value="">請選擇...</option>{db.ltcConst.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
-                          <div className="w-[15%] px-0.5 text-center font-medium">{row.up}</div>
-                          <div className="w-[10%] px-0.5"><input type="number" className="w-full border border-blue-300 rounded p-0.5 font-bold text-center text-xs h-8" value={row.quantity} onChange={e => setLtcConstRows(ltcConstRows.map(x=>x.id===row.id?{...x, quantity:+e.target.value}:x))} /></div>
-                          <div className="w-[15%] px-0.5 text-center font-medium border bg-white py-1.5 rounded text-blue-700">{row.tp}</div>
-                          <div className="w-[15%] px-0.5 text-center font-medium border bg-white py-1.5 rounded text-gray-700">{row.tq}</div>
-                          <div className="w-[15%] flex justify-center"><button onClick={() => setLtcConstRows(ltcConstRows.filter(x=>x.id!==row.id))} className="text-red-500 p-1"><Trash2 size={16} /></button></div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* 3. 身障無障礙區 (預設3條) */}
-            <div className="mb-5 bg-white rounded-lg shadow-sm border border-green-300 overflow-hidden">
-              <div className="bg-green-50 p-2 flex justify-between items-center cursor-pointer select-none" onClick={() => setIsDisConstOpen(!isDisConstOpen)}>
-                  <div className="text-base font-bold text-green-800">身障無障礙項目</div>
-                  <div className="flex items-center gap-2">
-                    <SmallStatCard title="無障礙身障總額" value={totals.dSub} colorClass="text-green-700"/>
-                    <button onClick={(e) => { e.stopPropagation(); setDisConstRows([...disConstRows, {id: Date.now(), productId: '', quantity: 1}]); }} className="bg-green-600 text-white hover:bg-green-500 rounded px-2 py-0.5 flex items-center gap-1 shadow text-xs"><Plus size={14}/>新增</button>
-                    {isDisConstOpen ? <ChevronUp size={18} className="text-green-700"/> : <ChevronDown size={18} className="text-green-700"/>}
-                  </div>
-              </div>
-              {isDisConstOpen && (
-                <div className="overflow-x-auto no-scrollbar">
-                  <div className="min-w-[800px]">
-                    <div className="flex bg-gray-50 border-b border-gray-200 p-1 font-bold text-[10px] text-gray-700 items-center text-center gap-0.5">
-                        <div className="w-[45%] text-left pl-1">身障項目</div>
-                        <div className="w-[15%]">身障單組金額</div>
-                        <div className="w-[10%]">組數</div>
-                        <div className="w-[15%]">身障單項金額</div>
-                        <div className="w-[15%]">操作</div>
-                    </div>
-                    {disConstCalc.map(row => (
-                      <div key={row.id} className="flex items-center text-xs p-1 border-b border-gray-100 hover:bg-green-50 gap-0.5">
-                          <div className="w-[45%] p-0.5"><select className="w-full border border-green-300 rounded p-0.5 font-bold bg-white text-xs h-8" value={row.productId} onChange={e => setDisConstRows(disConstRows.map(x=>x.id===row.id?{...x, productId:e.target.value}:x))}><option value="">請選擇...</option>{db.disConst.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
-                          <div className="w-[15%] px-0.5 text-center font-medium">{row.up}</div>
-                          <div className="w-[10%] px-0.5"><input type="number" className="w-full border border-green-300 rounded p-0.5 font-bold text-center text-xs h-8" value={row.quantity} onChange={e => setDisConstRows(disConstRows.map(x=>x.id===row.id?{...x, quantity:+e.target.value}:x))} /></div>
-                          <div className="w-[15%] px-0.5 text-center font-medium border bg-white py-1.5 rounded text-green-700">{row.tp}</div>
-                          <div className="w-[15%] flex justify-center"><button onClick={() => setDisConstRows(disConstRows.filter(x=>x.id!==row.id))} className="text-red-500 p-1"><Trash2 size={16} /></button></div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
+            <div className="mb-3 bg-white rounded-lg shadow-sm border border-blue-300 overflow-hidden"><div className="bg-blue-50 p-2 flex justify-between items-center"><div className="text-base font-bold text-blue-800">長照無障礙項目</div><div className="flex items-center gap-2"><SmallStatCard title="長照總額" value={totals.lSub} colorClass="text-blue-700"/><SmallStatCard title="長照額度" value={totals.lQSub}/><button onClick={() => setLtcConstRows([...ltcConstRows, {id: Date.now(), productId: '', quantity: 1}])} className="bg-blue-600 text-white rounded px-2 py-0.5 text-xs">+ 新增</button></div></div><div className="overflow-x-auto no-scrollbar"><div className="min-w-[800px]"><div className="flex bg-gray-50 p-1 font-bold text-[10px] text-center border-b"><div className="w-[30%] text-left pl-1">項目</div><div className="w-[15%]">單組金額</div><div className="w-[10%]">組數</div><div className="w-[15%]">單項金額</div><div className="w-[15%]">額度</div><div className="w-[15%]">操作</div></div>{ltcConstCalc.map(row => (<div key={row.id} className="flex items-center text-xs p-1 border-b"><div className="w-[30%] p-0.5"><select className="w-full border rounded h-8 text-[11px]" value={row.productId} onChange={e => setLtcConstRows(ltcConstRows.map(x=>x.id===row.id?{...x, productId:e.target.value}:x))}><option value="">請選擇...</option>{db.ltcConst.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div><div className="w-[15%] text-center font-medium">{row.up}</div><div className="w-[10%] px-0.5"><input type="number" className="w-full border rounded text-center h-8" value={row.quantity} onChange={e => setLtcConstRows(ltcConstRows.map(x=>x.id===row.id?{...x, quantity:+e.target.value}:x))} /></div><div className="w-[15%] px-0.5 text-center font-bold text-blue-700">{row.tp}</div><div className="w-[15%] px-0.5 text-center text-gray-600">{row.tq}</div><div className="w-[15%] flex justify-center"><button onClick={() => setLtcConstRows(ltcConstRows.filter(x=>x.id!==row.id))} className="text-red-500"><Trash2 size={16} /></button></div></div>))}</div></div></div>
+            <div className="mb-10 bg-white rounded-lg shadow-sm border border-green-300 overflow-hidden"><div className="bg-green-50 p-2 flex justify-between items-center"><div className="text-base font-bold text-green-800">身障無障礙項目</div><div className="flex items-center gap-2"><SmallStatCard title="身障總額" value={totals.dSub} colorClass="text-green-700"/><button onClick={() => setDisConstRows([...disConstRows, {id: Date.now(), productId: '', quantity: 1}])} className="bg-green-600 text-white rounded px-2 py-0.5 text-xs">+ 新增</button></div></div><div className="overflow-x-auto no-scrollbar"><div className="min-w-[800px]"><div className="flex bg-gray-50 p-1 font-bold text-[10px] text-center border-b"><div className="w-[45%] text-left pl-1">項目</div><div className="w-[15%]">單組金額</div><div className="w-[10%]">組數</div><div className="w-[15%]">單項金額</div><div className="w-[15%]">操作</div></div>{disConstCalc.map(row => (<div key={row.id} className="flex items-center text-xs p-1 border-b"><div className="w-[45%] p-0.5"><select className="w-full border rounded h-8 text-[11px]" value={row.productId} onChange={e => setDisConstRows(disConstRows.map(x=>x.id===row.id?{...x, productId:e.target.value}:x))}><option value="">請選擇...</option>{db.disConst.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div><div className="w-[15%] text-center font-medium">{row.up}</div><div className="w-[10%] px-0.5"><input type="number" className="w-full border rounded text-center h-8" value={row.quantity} onChange={e => setDisConstRows(disConstRows.map(x=>x.id===row.id?{...x, quantity:+e.target.value}:x))} /></div><div className="w-[15%] px-0.5 text-center font-bold text-green-700">{row.tp}</div><div className="w-[15%] flex justify-center"><button onClick={() => setDisConstRows(disConstRows.filter(x=>x.id!==row.id))} className="text-red-500"><Trash2 size={16} /></button></div></div>))}</div></div></div>
           </div>
         </div>
       );
     }
-
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
-
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./service-worker.js');
-    }
+    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./service-worker.js'); }
   </script>
 </body>
 </html>
