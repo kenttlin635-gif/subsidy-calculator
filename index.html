@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>輔具補助計算器 V30</title>
+  <title>輔具補助計算器 V31</title>
   
   <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#4A90E2">
@@ -33,7 +33,6 @@
   <script type="text/babel">
     const { useState, useMemo, useEffect } = React;
 
-    // --- Google Sheets CSV 網址 ---
     const CSV_URLS = {
       EQUIP: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSc52n0bHfF-AtmLmVLrTkhTjNTPT383WW_x1Mb53OAxPLdaeeDtrRHidAj-rQvDX2XRzxkEo2vDETV/pub?gid=0&single=true&output=csv",
       DIS_CONST: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSc52n0bHfF-AtmLmVLrTkhTjNTPT383WW_x1Mb53OAxPLdaeeDtrRHidAj-rQvDX2XRzxkEo2vDETV/pub?gid=902315114&single=true&output=csv",
@@ -49,10 +48,8 @@
     const RefreshCw = (p) => <IconBase {...p} className="loading-spin"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></IconBase>;
     const CheckSquare = (p) => <IconBase {...p}><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></IconBase>;
     const Square = (p) => <IconBase {...p}><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /></IconBase>;
-    const CheckCircle = (p) => <IconBase {...p}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></CheckCircle>;
+    const CheckCircle = (p) => <IconBase {...p}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></IconBase>;
     const Circle = (p) => <IconBase {...p}><circle cx="12" cy="12" r="10"></circle></IconBase>;
-    const ChevronUp = (p) => <IconBase {...p}><path d="M18 15l-6-6-6 6" /></IconBase>;
-    const ChevronDown = (p) => <IconBase {...p}><path d="M6 9l6 6 6-6" /></IconBase>;
     const Info = (p) => <IconBase {...p}><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></IconBase>;
     const Smartphone = (p) => <IconBase {...p} size={80}><path d="M5 2h14a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 15h.01" /></IconBase>;
 
@@ -67,13 +64,6 @@
       </div>
     );
 
-    const SmallStatCard = ({ title, value, colorClass = "text-gray-800" }) => (
-      <div className="flex flex-col items-end gap-0.5 bg-white border border-orange-200 rounded px-1.5 py-0.5 shadow-sm min-w-[70px] justify-between">
-        <span className="text-[10px] font-bold text-gray-500">{title}</span>
-        <span className={`text-xs font-bold ${colorClass}`}>{value}</span>
-      </div>
-    );
-
     const Button = ({ children, onClick, className }) => (
       <button onClick={onClick} className={`px-2 py-1.5 rounded text-white font-bold text-xs shadow active:scale-95 transition-transform flex items-center justify-center gap-1 whitespace-nowrap min-w-fit ${className}`}>
         {children}
@@ -82,29 +72,29 @@
 
     function App() {
       const [isLoading, setIsLoading] = useState(true);
-      const [db, setDb] = useState({ equip: [], disConst: [], ltcConst: [] });
+      const [db, setDb] = useState({ equip: [], disConst: [], ltcConst: [], lastUpdate: '' });
       const [disabilityStatus, setDisabilityStatus] = useState('');
       const [ltcStatus, setLtcStatus] = useState('');
       const [equipRows, setEquipRows] = useState([{ id: 1, productId: '', ltcChecked: false, disChecked: false }]);
       const [ltcConstRows, setLtcConstRows] = useState([{ id: 201, productId: '', quantity: 1 }]);
       const [disConstRows, setDisConstRows] = useState([{ id: 301, productId: '', quantity: 1 }]);
-      const [isEquipOpen, setIsEquipOpen] = useState(true);
-      const [isLtcConstOpen, setIsLtcConstOpen] = useState(true);
-      const [isDisConstOpen, setIsDisConstOpen] = useState(true);
       const [constApplyMode, setConstApplyMode] = useState('LTC');
+      const [isEquipOpen, setIsEquipOpen] = useState(true);
 
-      // --- 1. 資料抓取 ---
       useEffect(() => {
         const fetchData = async () => {
           try {
             const fetchCsv = async (url) => {
               const res = await fetch(url);
+              if (!res.ok) throw new Error("網路請求失敗");
               const text = await res.text();
               return text.split(/\r?\n/).map(line => line.split(','));
             };
+
             const [rawEq, rawDis, rawLtc] = await Promise.all([
               fetchCsv(CSV_URLS.EQUIP), fetchCsv(CSV_URLS.DIS_CONST), fetchCsv(CSV_URLS.LTC_CONST)
             ]);
+
             const equip = rawEq.slice(2).filter(r => r[0]).map((r, i) => ({
               id: `p${i}`, name: r[0],
               prices: {
@@ -113,17 +103,28 @@
               },
               years: r[7] || '-', ltcQuota: +r[6] || 0
             }));
+
             const parseC = (raw) => raw.slice(1).filter(r => r[0]).map((r, i) => ({
               id: `c${i}`, name: r[0], prices: { '一般戶': +r[1]||0, '中低收': +r[2]||0, '低收入戶': +r[3]||0 }, quota: +r[3]||0
             }));
-            setDb({ equip, disConst: parseC(rawDis), ltcConst: parseC(rawLtc) });
+
+            const finalDb = { equip, disConst: parseC(rawDis), ltcConst: parseC(rawLtc), lastUpdate: new Date().toLocaleString() };
+            localStorage.setItem('subsidy_db_backup', JSON.stringify(finalDb));
+            setDb(finalDb);
             setIsLoading(false);
-          } catch (e) { alert("同步失敗，請檢查網路連線"); }
+          } catch (e) {
+            const backup = localStorage.getItem('subsidy_db_backup');
+            if (backup) {
+              setDb(JSON.parse(backup));
+              setIsLoading(false);
+            } else {
+              alert("首次使用需連網同步資料");
+            }
+          }
         };
         fetchData();
       }, []);
 
-      // --- 2. 計算邏輯 (對齊 V27) ---
       const calculatedEquipRows = useMemo(() => {
         return equipRows.map(row => {
           const p = db.equip.find(x => x.id === row.productId);
@@ -139,7 +140,7 @@
 
       const totals = useMemo(() => {
         const eT = calculatedEquipRows.reduce((acc, r) => ({
-          d: acc.d + r.activeD, l: acc.l + r.activeL, q: acc.q + r.activeQ
+          d: acc.d + (r.activeD || 0), l: acc.l + (r.activeL || 0), q: acc.q + (r.activeQ || 0)
         }), { d: 0, l: 0, q: 0 });
         const lS = ltcConstRows.reduce((acc, r) => {
           const p = db.ltcConst.find(x => x.id === r.productId);
@@ -153,10 +154,7 @@
         }, 0);
         let cLp = 0, cDp = 0, cQo = 0;
         if (constApplyMode === 'LTC') { cLp = lS.p; cQo = lS.q; } else { cDp = dS; }
-        return {
-          disTotal: eT.d + cDp, ltcTotal: eT.l + cLp, quotaTotal: eT.q + cQo,
-          lConstSub: lS.p, dConstSub: dS
-        };
+        return { disTotal: eT.d + cDp, ltcTotal: eT.l + cLp, quotaTotal: eT.q + cQo, lConstSub: lS.p, dConstSub: dS };
       }, [calculatedEquipRows, ltcConstRows, disConstRows, constApplyMode, ltcStatus, disabilityStatus, db]);
 
       const constDiff = totals.lConstSub - totals.dConstSub;
@@ -177,10 +175,17 @@
         }));
       };
 
+      const clearAll = () => {
+        setDisabilityStatus(''); setLtcStatus('');
+        setEquipRows([{ id: Date.now(), productId: '', ltcChecked: false, disChecked: false }]);
+        setLtcConstRows([{ id: Date.now()+1, productId: '', quantity: 1 }]);
+        setDisConstRows([{ id: Date.now()+2, productId: '', quantity: 1 }]);
+      };
+
       const handleScreenshot = () => {
         window.scrollTo(0, 0);
         htmlToImage.toPng(document.getElementById('main-content'), { quality: 1, backgroundColor: '#f3f4f6' })
-          .then(url => { const l = document.createElement('a'); l.download = `輔具試算_${new Date().toLocaleDateString()}.png`; l.href = url; l.click(); });
+          .then(url => { const l = document.createElement('a'); l.download = `試算表_${new Date().toLocaleDateString()}.png`; l.href = url; l.click(); });
       };
 
       if (isLoading) return (
@@ -193,16 +198,15 @@
       return (
         <div className="bg-gray-100 font-sans min-h-screen">
           <div id="orientation-lock" className="fixed inset-0 z-[9999] bg-gray-900 text-white flex flex-col items-center justify-center p-8 text-center portrait:flex landscape:hidden">
-             <RefreshCw className="mb-6 text-yellow-400" />
+             <RefreshCw className="mb-6 text-yellow-400 animate-pulse" />
              <h2 className="text-xl font-bold mb-4">請旋轉裝置</h2>
-             <p className="text-base text-gray-300">本系統僅支援橫向模式 使用。</p>
+             <p className="text-base text-gray-300">本系統僅支援橫向模式使用。</p>
              <Smartphone className="mt-8 text-gray-700 rotate-90" />
           </div>
 
           <div className="portrait:hidden landscape:block w-full px-2" id="main-content">
-            {/* Header Dashboard */}
-            <div className="sticky top-0 z-50 bg-white rounded-lg shadow-md mb-3 border border-gray-200 mt-2">
-              <div className="bg-blue-600 text-white p-1 text-center font-bold text-sm">身障/長照 補助計算機 V30</div>
+            <div className="sticky top-0 z-50 bg-white rounded-lg shadow-md mb-3 border border-gray-200 mt-2 overflow-hidden">
+              <div className="bg-blue-600 text-white p-1 text-center font-bold text-sm">身障/長照 補助計算機 V31</div>
               <div className="p-2">
                 <div className="flex items-end gap-2 mb-2">
                   <div className="w-32"><label className="font-bold text-[10px] block">身障經濟別</label>
@@ -227,11 +231,10 @@
               </div>
             </div>
 
-            {/* 1. 輔具清單 (寬度重新計算以容納年限) */}
             <div className="mb-3 bg-white rounded-lg shadow-sm border border-blue-200 overflow-hidden">
-               <div className="bg-blue-100 p-1.5 flex justify-between items-center font-bold text-blue-900 text-xs" onClick={() => setIsEquipOpen(!isEquipOpen)}>
-                  <span>輔具清單 (雲端同步)</span>
-                  <button onClick={(e) => {e.stopPropagation(); setEquipRows([...equipRows, {id: Date.now(), productId: '', ltcChecked: false, disChecked: false}]);}} className="bg-green-600 text-white px-2 py-0.5 rounded text-[10px]">+ 新增</button>
+               <div className="bg-blue-100 p-1.5 flex justify-between items-center font-bold text-blue-900 text-xs cursor-pointer" onClick={() => setIsEquipOpen(!isEquipOpen)}>
+                  <span>輔具清單 (同步：{db.lastUpdate || '離線'})</span>
+                  <button onClick={(e) => {e.stopPropagation(); setEquipRows([...equipRows, {id: Date.now(), productId: '', ltcChecked: false, disChecked: false}]);}} className="bg-green-600 text-white px-2 py-0.5 rounded text-[10px]">+ 新增項目</button>
                </div>
                {isEquipOpen && (
                  <div>
@@ -240,11 +243,11 @@
                       <div className="w-[6%]">長照</div><div className="w-[11%]">長照$</div>
                       <div className="w-[6%]">身障</div><div className="w-[11%]">身障$</div>
                       <div className="w-[8%] text-blue-700">年限</div>
-                      <div className="w-[12%]">差額</div><div className="w-[12%]">額度</div><div className="w-[12%]">操作</div>
+                      <div className="w-[12%]">差額</div><div className="w-[12%]">占用額度</div><div className="w-[12%]">操作</div>
                    </div>
                    {calculatedEquipRows.map(row => (
                       <div key={row.id} className="flex items-center text-[10px] p-1 border-b gap-0.5 hover:bg-blue-50/50">
-                        <div className="w-[22%] p-0.5"><select className="w-full border rounded p-0.5 h-7" value={row.productId} onChange={e => setEquipRows(equipRows.map(r => r.id === row.id ? {...r, productId: e.target.value} : r))}><option value="">請選擇</option>{db.equip.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
+                        <div className="w-[22%] p-0.5"><select className="w-full border rounded p-0.5 h-7" value={row.productId} onChange={e => setEquipRows(equipRows.map(r => r.id === row.id ? {...r, productId: e.target.value} : r))}><option value="">請選擇輔具</option>{db.equip.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
                         <div className="w-[6%] flex justify-center"><button onClick={() => handleEquipCheck(row.id, 'ltcChecked')}>{row.ltcChecked ? <CheckSquare className="text-blue-600"/> : <Square className="text-gray-300"/>}</button></div>
                         <div className="w-[11%] border rounded py-1 text-center bg-gray-50 truncate">{row.ltcP}</div>
                         <div className="w-[6%] flex justify-center"><button onClick={() => handleEquipCheck(row.id, 'disChecked')}>{row.disChecked ? <CheckSquare className="text-green-600"/> : <Square className="text-gray-300"/>}</button></div>
@@ -259,10 +262,9 @@
                )}
             </div>
 
-            {/* 管道選擇區 (與 V27 視覺一致，並修正電腦版顯示) */}
             <div className="mb-3 bg-white rounded-lg shadow-sm border border-gray-200 p-2 flex flex-wrap items-center gap-2">
                <div className="flex items-center gap-2 mr-auto">
-                   <span className="text-xs font-bold text-gray-700">無障礙申請管道：</span>
+                   <span className="text-xs font-bold text-gray-700">無障礙管道：</span>
                    <div className="flex items-center gap-1 border border-gray-300 px-2 py-1 rounded bg-gray-50">
                       <Info size={12} className="text-gray-500" />
                       <span className={`text-[10px] ${diffColorClass}`}>{diffText}</span>
@@ -277,11 +279,9 @@
                     {constApplyMode === 'DISABILITY' ? <CheckCircle className="text-green-600" /> : <Circle className="text-gray-300" />}
                     <span className={`text-xs font-bold ${constApplyMode === 'DISABILITY' ? 'text-green-700' : 'text-gray-500'}`}>從身障申請</span>
                   </label>
-                  <span className="text-[10px] text-gray-400">(勾選的項目才會加總)</span>
                </div>
             </div>
 
-            {/* 無障礙細項 */}
             <div className="grid grid-cols-2 gap-2 mb-10">
                <div className="bg-white rounded-lg shadow-sm border border-blue-300 overflow-hidden">
                   <div className="bg-blue-50 p-1.5 flex justify-between font-bold text-blue-800 text-xs"><span>長照無障礙項目</span><button onClick={() => setLtcConstRows([...ltcConstRows, {id:Date.now(), productId:'', quantity:1}])} className="bg-blue-600 text-white px-1.5 rounded">+</button></div>
@@ -304,17 +304,9 @@
                   ))}
                </div>
             </div>
-
           </div>
         </div>
       );
-      
-      function clearAll() {
-        setDisabilityStatus(''); setLtcStatus('');
-        setEquipRows([{ id: Date.now(), productId: '', ltcChecked: false, disChecked: false }]);
-        setLtcConstRows([{ id: Date.now()+1, productId: '', quantity: 1 }]);
-        setDisConstRows([{ id: Date.now()+2, productId: '', quantity: 1 }]);
-      }
     }
 
     const root = ReactDOM.createRoot(document.getElementById('root'));
