@@ -1,4 +1,4 @@
-const CACHE_NAME = 'subsidy-calculator-v30'; // 1. 升級至 v30
+const CACHE_NAME = 'subsidy-calculator-v31'; // 改為 v31
 const urlsToCache = [
   './',
   './index.html',
@@ -6,25 +6,25 @@ const urlsToCache = [
   './icon.png'
 ];
 
-// 安裝 Service Worker 並儲存快取
+// 安裝階段：儲存快取
 self.addEventListener('install', function(event) {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(function(cache) {
-        console.log('快取已開啟');
+        console.log('V31 快取已開啟');
         return cache.addAll(urlsToCache);
       })
   );
 });
 
-// 2. 啟動階段：刪除舊快取 (非常重要，否則手機會一直抓到舊版)
+// 啟動階段：清理舊版的快取 (重要！)
 self.addEventListener('activate', function(event) {
   event.waitUntil(
     caches.keys().then(function(cacheNames) {
       return Promise.all(
         cacheNames.map(function(cacheName) {
           if (cacheName !== CACHE_NAME) {
-            console.log('正在刪除舊快取:', cacheName);
+            console.log('正在清理舊快取:', cacheName);
             return caches.delete(cacheName);
           }
         })
@@ -33,15 +33,16 @@ self.addEventListener('activate', function(event) {
   );
 });
 
-// 攔截請求並回應
+// 攔截請求
 self.addEventListener('fetch', function(event) {
   event.respondWith(
     caches.match(event.request)
       .then(function(response) {
-        // 如果快取中有資料就使用快取，否則發送網路請求
+        // 如果快取中有(像 index.html)，就直接給
         if (response) {
           return response;
         }
+        // 否則去網路上抓 (像 Google Sheets 的 CSV)
         return fetch(event.request);
       })
   );
