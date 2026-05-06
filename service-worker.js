@@ -1,4 +1,4 @@
-const CACHE_NAME = 'subsidy-calculator-v42';
+const CACHE_NAME = 'subsidy-calculator-v43';
 
 // 需要快取的靜態資源與外部 CDN 連結
 const urlsToCache = [
@@ -17,7 +17,7 @@ const urlsToCache = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('V42 全能離線快取已建立');
+      console.log('V43 全能離線快取已建立');
       return cache.addAll(urlsToCache);
     })
   );
